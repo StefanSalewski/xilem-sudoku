@@ -3,7 +3,7 @@
 A simple Sudoku game written in **Rust** using the **Xilem** GUI framework.
 Supports mouse-based play, difficulty selection, conflict highlighting, timers, and a minimal built-in Sudoku generator/solver.
 
-![Xilem Sudoku UI](http://ssalewski.de/tmp/xilem-sudoku.png)
+![Xilem Sudoku UI](xilem-sudoku.png)
 
 ## Features
 
