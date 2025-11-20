@@ -228,30 +228,7 @@ impl Default for AppState {
     }
 }
 
-fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
-    let elapsed = state.elapsed_seconds();
-    let minutes = elapsed / 60;
-    let seconds = elapsed % 60;
-
-    // Top info bar
-    let info_bar = flex_row((
-        label(format!("Time: {minutes}:{seconds:02}"))
-            .font(FontStack::Source("monospace".into())),
-        label(format!("Voids left: {}", state.voids)),
-        label(format!("Fails: {}", state.fails)),
-        label(format!("Difficulty: {:.0}", state.difficulty)),
-        slider(
-            0.0,
-            sudoku::MAX_DIFFICULTY_LEVEL as f64,
-            state.difficulty,
-            |s: &mut AppState, val| {
-                s.difficulty = val;
-            },
-        )
-        .step(1.0),
-        text_button("New Game", |s: &mut AppState| s.new_game()),
-    ));
-
+fn number_grid() -> impl WidgetView<Edit<AppState>> + use<> {
     // Digit buttons 1–9 (explicit loop instead of iterator `.map()` to avoid ICE)
     let mut number_cells = Vec::new();
     for i in 0..9 {
@@ -268,8 +245,70 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
         number_cells.push(btn);
     }
 
-    let number_grid = grid(number_cells, 9, 1).spacing(GRID_GAP);
+    grid(number_cells, 9, 1).spacing(GRID_GAP)
+}
 
+fn cell(state: &mut AppState, index: usize) -> impl WidgetView<Edit<AppState>> + use<> {
+    let value = state.sudoku[index];
+    let text = if value == 0 {
+        String::new()
+    } else {
+        value.to_string()
+    };
+
+    let color = if state.is_clue[index] {
+        CLUE_TEXT_COLOR
+    } else if value != 0 && state.selected_cell == Some(index) && state.collision {
+        FAIL_TEXT_COLOR
+    } else {
+        GUESS_TEXT_COLOR
+    };
+
+    let background = if state.selected_cell == Some(index) {
+        SELECTED_BACKGROUND_COLOR
+    } else if state.highlight[index] {
+        SUDOKU_HIGHLIGHT_COLOR
+    } else {
+        SUDOKU_BACKGROUND_COLOR
+    };
+
+    let cell_label = label(text)
+        .text_alignment(TextAlign::Center)
+        .text_size(24.0)
+        .color(color);
+
+    button(cell_label, move |state: &mut AppState| {
+        state.select_cell(index);
+    })
+    .background_color(background)
+    .corner_radius(0.0)
+    .border_color(Color::TRANSPARENT)
+}
+
+fn info_bar(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
+    let elapsed = state.elapsed_seconds();
+    let minutes = elapsed / 60;
+    let seconds = elapsed % 60;
+    flex_row((
+        label(format!("Time: {minutes}:{seconds:02}")).font(FontStack::Source("monospace".into())),
+        label(format!("Voids left: {}", state.voids)),
+        label(format!("Fails: {}", state.fails)),
+        label(format!("Difficulty: {:.0}", state.difficulty)),
+        slider(
+            0.0,
+            sudoku::MAX_DIFFICULTY_LEVEL as f64,
+            state.difficulty,
+            |s: &mut AppState, val| {
+                s.difficulty = val;
+            },
+        )
+        .step(1.0),
+        text_button("New Game", |s: &mut AppState| s.new_game()),
+    ))
+}
+
+
+fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
     // Sudoku board as 3x3 blocks of 3x3 cells
     let mut sudoku_blocks = Vec::with_capacity(BOARD_BLOCKS * BOARD_BLOCKS);
 
@@ -279,71 +318,26 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
 
             for cell_row in 0..BLOCK_SIDE {
                 for cell_col in 0..BLOCK_SIDE {
-                    let index =
-                        block_row * SIDE * BLOCK_SIDE + cell_row * SIDE + block_col * BLOCK_SIDE
-                            + cell_col;
+                    let index = block_row * SIDE * BLOCK_SIDE
+                        + cell_row * SIDE
+                        + block_col * BLOCK_SIDE
+                        + cell_col;
 
-                    let value = state.sudoku[index];
-                    let text = if value == 0 {
-                        String::new()
-                    } else {
-                        value.to_string()
-                    };
-
-                    let color = if state.is_clue[index] {
-                        CLUE_TEXT_COLOR
-                    } else if value != 0
-                        && state.selected_cell == Some(index)
-                        && state.collision
-                    {
-                        FAIL_TEXT_COLOR
-                    } else {
-                        GUESS_TEXT_COLOR
-                    };
-
-                    let background = if state.selected_cell == Some(index) {
-                        SELECTED_BACKGROUND_COLOR
-                    } else if state.highlight[index] {
-                        SUDOKU_HIGHLIGHT_COLOR
-                    } else {
-                        SUDOKU_BACKGROUND_COLOR
-                    };
-
-                    let cell_label = label(text)
-                        .text_alignment(TextAlign::Center)
-                        .text_size(24.0)
-                        .color(color);
-
-                    let cell = button(cell_label, move |state: &mut AppState| {
-                        state.select_cell(index);
-                    })
-                    .background_color(background)
-                    .corner_radius(0.0)
-                    .border_color(Color::TRANSPARENT)
-                    .grid_pos(cell_col as i32, cell_row as i32);
-
-                    block_cells.push(cell);
+                    block_cells.push(cell(state, index).grid_pos(cell_col as i32, cell_row as i32));
                 }
             }
 
             let block_grid = grid(block_cells, BLOCK_SIDE as i32, BLOCK_SIDE as i32);
-            sudoku_blocks.push(
-                sized_box(block_grid).grid_pos(block_col as i32, block_row as i32),
-            );
+            sudoku_blocks.push(sized_box(block_grid).grid_pos(block_col as i32, block_row as i32));
         }
     }
 
-    let board = grid(
-        sudoku_blocks,
-        BOARD_BLOCKS as i32,
-        BOARD_BLOCKS as i32,
-    )
-    .spacing(GRID_GAP);
+    let board = grid(sudoku_blocks, BOARD_BLOCKS as i32, BOARD_BLOCKS as i32).spacing(GRID_GAP);
 
     let layout = flex_col((
         FlexSpacer::Fixed(GAP),
-        info_bar,
-        number_grid.flex(1.0),
+        info_bar(state),
+        number_grid().flex(1.0),
         board.flex(9.0),
     ))
     .gap(GAP);
