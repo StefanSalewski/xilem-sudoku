@@ -1,8 +1,8 @@
-// Plain Sudoku generator v0.1
+// Plain Sudoku generator v0.2
 // (c) S. Salewski 2025
-// 20-NOV-2025
+// 25-NOV-2025
 
-use rand::{rng, seq::SliceRandom, Rng};
+use rand::{Rng, rng, seq::SliceRandom};
 use std::fmt;
 
 pub const MAX_DIFFICULTY_LEVEL: u8 = 7; // up to 7*7+8 zeros
@@ -62,6 +62,7 @@ impl Sudoku {
     // Check that this Sudoku is a complete, valid solution:
     // - no zeros
     // - each row/col/block contains 1..=9 exactly once
+    #[allow(dead_code)]
     fn is_valid(&self) -> bool {
         // helper: check array is exactly {1..=9}
         fn is_1_to_9(a: &Row) -> bool {
@@ -110,16 +111,17 @@ impl Sudoku {
     fn col(&self, n: usize) -> Col {
         assert!(n < SIDE);
         let mut col = [0i8; SIDE];
-        for r in 0..SIDE {
-            col[r] = self.0[r * SIDE + n];
+        for (r, cell) in col.iter_mut().enumerate() {
+            *cell = self.0[r * SIDE + n];
         }
+
         col
     }
 
     fn set_col(&mut self, n: usize, vals: &Col) {
         assert!(n < SIDE);
-        for r in 0..SIDE {
-            self.0[r * SIDE + n] = vals[r];
+        for (r, v) in vals.iter().enumerate() {
+            self.0[r * SIDE + n] = *v;
         }
     }
 
@@ -265,8 +267,8 @@ impl Sudoku {
     }
 
     /// Generate a fully solved Sudoku grid.
-    fn newf() -> Self {
-        let mut s = Sudoku([0; CELL_COUNT], [0; CELL_COUNT]);
+    fn new_solved() -> Self {
+        let mut s = Self([0; CELL_COUNT], [0; CELL_COUNT]);
         s.solve_from(0);
         s
     }
@@ -277,17 +279,15 @@ impl Sudoku {
     /// - level 0: very easy, roughly one zero per row/column.
     /// - level > 0: progressively more zeros, while preserving uniqueness.
     pub fn new(level: u8) -> Self {
-        let mut s = Sudoku::newf();
+        let mut s = Self::new_solved();
         // Save fully solved version.
         s.1 = s.0;
 
         if level == 0 {
             // Ensure only one zero per row and column -- very easy start.
             let a = shuffled_array_0_to_8();
-            let mut j = 0;
-            for i in 0..SIDE {
-                s.0[(j + a[i] as usize) as usize] = 0;
-                j += SIDE;
+            for (row, &col_idx) in a.iter().enumerate() {
+                s.0[row * SIDE + col_idx as usize] = 0;
             }
         } else {
             // Allow multiple (or zero) zeros per column.
@@ -357,11 +357,10 @@ mod tests {
 
     #[test]
     fn generated_sudoku_is_valid() {
-        let s = Sudoku::newf();
+        let s = Sudoku::new_solved();
         assert!(
             s.is_valid(),
             "Generated Sudoku is not a valid solution:\n{s}"
         );
     }
 }
-

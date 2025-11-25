@@ -26,8 +26,10 @@ To run the game:
 ```sh
 git clone https://github.com/StefanSalewski/xilem-sudoku.git
 cd xilem-sudoku
-RUST_LOG=off cargo run
+cargo run --release
 ```
+
+Running in release mode avoids the verbose logging output of masonry.
 
 Tested only for Linux, but might work on Windows and MacOS.
 

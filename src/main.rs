@@ -1,18 +1,21 @@
-// Xilem Sudoku v0.1
+// Xilem Sudoku v0.2
 // (c) S. Salewski 2025
-// 20-NOV-2025
+// 25-NOV-2025
 
 use std::time::{Duration, Instant};
 
+use masonry::dpi::LogicalSize;
 use masonry::parley::FontStack;
-use masonry::properties::types::Length;
+use masonry::properties::types::{AsUnit, Length};
+
 use tokio::time;
 use winit::error::EventLoopError;
+
 use xilem::core::fork;
 use xilem::style::Style; // required for style extension methods
 use xilem::view::{
-    button, flex_col, flex_row, grid, label, sized_box, slider, task, text_button, FlexExt,
-    FlexSpacer, GridExt,
+    FlexExt, FlexSpacer, GridExt, button, flex_col, flex_row, grid, label, sized_box, slider, task,
+    text_button,
 };
 use xilem::{Color, EventLoop, TextAlign, WidgetView, WindowOptions, Xilem};
 use xilem_core::Edit;
@@ -40,6 +43,32 @@ const SUDOKU_HIGHLIGHT_COLOR: Color = Color::from_rgb8(0x28, 0x28, 0x28);
 const SELECTED_BACKGROUND_COLOR: Color = Color::from_rgb8(0x66, 0x66, 0x66);
 
 const TIMER_TICK_MS: u64 = 50;
+
+// --- Small helpers for board indexing ---------------------------------------------------------
+
+#[inline]
+fn row_of(index: usize) -> usize {
+    index / SIDE
+}
+
+#[inline]
+fn col_of(index: usize) -> usize {
+    index % SIDE
+}
+
+#[inline]
+fn row_start(index: usize) -> usize {
+    row_of(index) * SIDE
+}
+
+#[inline]
+fn block_origin(index: usize) -> usize {
+    let block_row = row_of(index) / BLOCK_SIDE;
+    let block_col = col_of(index) / BLOCK_SIDE;
+    block_row * SIDE * BLOCK_SIDE + block_col * BLOCK_SIDE
+}
+
+// --- Application state ------------------------------------------------------------------------
 
 /// Full application state.
 struct AppState {
@@ -73,13 +102,12 @@ struct AppState {
 
 impl AppState {
     fn new(difficulty: f64) -> Self {
-        let s = sudoku::Sudoku::new(difficulty as u8);
-        let puzzle = s.0;
-        let solution = s.1;
+        // Properly destructure the tuple struct `Sudoku`
+        let sudoku::Sudoku(puzzle, solution) = sudoku::Sudoku::new(difficulty as u8);
 
         let voids = puzzle.iter().filter(|&&n| n == 0).count();
 
-        AppState {
+        Self {
             active: true,
             sudoku: puzzle,
             solved: solution,
@@ -97,7 +125,7 @@ impl AppState {
     }
 
     fn new_game(&mut self) {
-        *self = AppState::new(self.difficulty);
+        *self = Self::new(self.difficulty);
     }
 
     fn elapsed_seconds(&self) -> u64 {
@@ -126,16 +154,16 @@ impl AppState {
         }
 
         // Row
-        let row_start = index / SIDE * SIDE;
+        let start = row_start(index);
         for offset in 0..SIDE {
-            let i = row_start + offset;
+            let i = start + offset;
             if i != index && self.sudoku[i] == value {
                 return true;
             }
         }
 
         // Column
-        let col = index % SIDE;
+        let col = col_of(index);
         for row in 0..SIDE {
             let i = col + row * SIDE;
             if i != index && self.sudoku[i] == value {
@@ -144,13 +172,10 @@ impl AppState {
         }
 
         // Block
-        let block_row = index / (SIDE * BLOCK_SIDE);
-        let block_col = (index % SIDE) / BLOCK_SIDE;
-        let block_origin = block_row * SIDE * BLOCK_SIDE + block_col * BLOCK_SIDE;
-
+        let origin = block_origin(index);
         for br in 0..BLOCK_SIDE {
             for bc in 0..BLOCK_SIDE {
-                let i = block_origin + bc + br * SIDE;
+                let i = origin + bc + br * SIDE;
                 if i != index && self.sudoku[i] == value {
                     return true;
                 }
@@ -188,25 +213,22 @@ impl AppState {
         self.clear_highlight();
 
         // Row
-        let row_start = index / SIDE * SIDE;
+        let start = row_start(index);
         for offset in 0..SIDE {
-            self.highlight[row_start + offset] = true;
+            self.highlight[start + offset] = true;
         }
 
         // Column
-        let col = index % SIDE;
+        let col = col_of(index);
         for row in 0..SIDE {
             self.highlight[col + row * SIDE] = true;
         }
 
         // Block
-        let block_row = index / (SIDE * BLOCK_SIDE);
-        let block_col = (index % SIDE) / BLOCK_SIDE;
-        let block_origin = block_row * SIDE * BLOCK_SIDE + block_col * BLOCK_SIDE;
-
+        let origin = block_origin(index);
         for br in 0..BLOCK_SIDE {
             for bc in 0..BLOCK_SIDE {
-                self.highlight[block_origin + bc + br * SIDE] = true;
+                self.highlight[origin + bc + br * SIDE] = true;
             }
         }
     }
@@ -224,9 +246,11 @@ impl AppState {
 
 impl Default for AppState {
     fn default() -> Self {
-        AppState::new(DEFAULT_DIFFICULTY)
+        Self::new(DEFAULT_DIFFICULTY)
     }
 }
+
+// --- Views ------------------------------------------------------------------------------------
 
 fn number_grid() -> impl WidgetView<Edit<AppState>> + use<> {
     // Digit buttons 1–9 (explicit loop instead of iterator `.map()` to avoid ICE)
@@ -238,10 +262,11 @@ fn number_grid() -> impl WidgetView<Edit<AppState>> + use<> {
                 state.apply_guess(index, digit as i8);
             }
         })
+        .padding(0.0)
         .background_color(SOURCE_BG)
         .corner_radius(0.0)
         .border_color(Color::TRANSPARENT)
-        .grid_pos(i as i32, 0);
+        .grid_pos(i, 0);
         number_cells.push(btn);
     }
 
@@ -250,10 +275,10 @@ fn number_grid() -> impl WidgetView<Edit<AppState>> + use<> {
 
 fn cell(state: &mut AppState, index: usize) -> impl WidgetView<Edit<AppState>> + use<> {
     let value = state.sudoku[index];
-    let text = if value == 0 {
-        String::new()
-    } else {
-        value.to_string()
+
+    let text = match value {
+        0 => String::new(),
+        n => n.to_string(),
     };
 
     let color = if state.is_clue[index] {
@@ -280,6 +305,7 @@ fn cell(state: &mut AppState, index: usize) -> impl WidgetView<Edit<AppState>> +
     button(cell_label, move |state: &mut AppState| {
         state.select_cell(index);
     })
+    .padding(0.0)
     .background_color(background)
     .corner_radius(0.0)
     .border_color(Color::TRANSPARENT)
@@ -289,27 +315,30 @@ fn info_bar(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
     let elapsed = state.elapsed_seconds();
     let minutes = elapsed / 60;
     let seconds = elapsed % 60;
+
     flex_row((
         label(format!("Time: {minutes}:{seconds:02}")).font(FontStack::Source("monospace".into())),
         label(format!("Voids left: {}", state.voids)),
         label(format!("Fails: {}", state.fails)),
         label(format!("Difficulty: {:.0}", state.difficulty)),
-        slider(
-            0.0,
-            sudoku::MAX_DIFFICULTY_LEVEL as f64,
-            state.difficulty,
-            |s: &mut AppState, val| {
-                s.difficulty = val;
-            },
+        sized_box(
+            slider(
+                0.0,
+                sudoku::MAX_DIFFICULTY_LEVEL as f64,
+                state.difficulty,
+                |state: &mut AppState, val| {
+                    state.difficulty = val;
+                },
+            )
+            .step(1.0),
         )
-        .step(1.0),
-        text_button("New Game", |s: &mut AppState| s.new_game()),
+        .width(40.px()),
+        text_button("New Game", |state: &mut AppState| state.new_game()).padding(8.0),
     ))
 }
 
-
-fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
-    // Sudoku board as 3x3 blocks of 3x3 cells
+/// Build the full Sudoku board (3×3 blocks of 3×3 cells).
+fn build_board(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
     let mut sudoku_blocks = Vec::with_capacity(BOARD_BLOCKS * BOARD_BLOCKS);
 
     for block_row in 0..BOARD_BLOCKS {
@@ -332,7 +361,11 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
         }
     }
 
-    let board = grid(sudoku_blocks, BOARD_BLOCKS as i32, BOARD_BLOCKS as i32).spacing(GRID_GAP);
+    grid(sudoku_blocks, BOARD_BLOCKS as i32, BOARD_BLOCKS as i32).spacing(GRID_GAP)
+}
+
+fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
+    let board = build_board(state);
 
     let layout = flex_col((
         FlexSpacer::Fixed(GAP),
@@ -365,8 +398,12 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
 }
 
 fn main() -> Result<(), EventLoopError> {
-    let app = Xilem::new_simple(AppState::default(), app_logic, WindowOptions::new("Sudoku"));
+    let window_options = WindowOptions::new("Sudoku")
+        .with_min_inner_size(LogicalSize::new(600.0, 600.0))
+        .with_initial_inner_size(LogicalSize::new(700.0, 700.0));
+
+    let app = Xilem::new_simple(AppState::default(), app_logic, window_options);
+
     app.run_in(EventLoop::with_user_event())?;
     Ok(())
 }
-
