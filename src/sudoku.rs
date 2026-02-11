@@ -2,7 +2,9 @@
 // (c) S. Salewski 2025
 // 25-NOV-2025
 
-use rand::{Rng, rng, seq::SliceRandom};
+use rand::{rng, seq::SliceRandom};
+use rand::RngExt;
+
 use std::fmt;
 
 pub const MAX_DIFFICULTY_LEVEL: u8 = 7; // up to 7*7+8 zeros

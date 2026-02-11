@@ -1,12 +1,14 @@
 // Xilem Sudoku v0.2
-// (c) S. Salewski 2025
-// 25-NOV-2025
+// (c) S. Salewski 2025, 2026
+// 10-FEB-2026
 
 use std::time::{Duration, Instant};
 
 use masonry::dpi::LogicalSize;
 use masonry::parley::FontStack;
-use masonry::properties::types::{AsUnit, Length};
+use masonry::layout::Length;
+use masonry::layout::AsUnit;
+//use masonry::properties::types::{AsUnit, Length};
 
 use tokio::time;
 use winit::error::EventLoopError;
@@ -270,7 +272,7 @@ fn number_grid() -> impl WidgetView<Edit<AppState>> + use<> {
         number_cells.push(btn);
     }
 
-    grid(number_cells, 9, 1).spacing(GRID_GAP)
+    grid(number_cells, 9, 1).gap(GRID_GAP)
 }
 
 fn cell(state: &mut AppState, index: usize) -> impl WidgetView<Edit<AppState>> + use<> {
@@ -332,7 +334,7 @@ fn info_bar(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
             )
             .step(1.0),
         )
-        .width(40.px()),
+        .width(40_i32.px()),
         text_button("New Game", |state: &mut AppState| state.new_game()).padding(8.0),
     ))
 }
@@ -361,7 +363,7 @@ fn build_board(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> 
         }
     }
 
-    grid(sudoku_blocks, BOARD_BLOCKS as i32, BOARD_BLOCKS as i32).spacing(GRID_GAP)
+    grid(sudoku_blocks, BOARD_BLOCKS as i32, BOARD_BLOCKS as i32).gap(GRID_GAP)
 }
 
 fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
@@ -380,7 +382,7 @@ fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
         layout,
         state.active.then(|| {
             task(
-                |proxy| async move {
+                |proxy, _| async move {
                     let mut interval = time::interval(Duration::from_millis(TIMER_TICK_MS));
                     loop {
                         interval.tick().await;

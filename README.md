@@ -31,6 +31,12 @@ cargo run --release
 
 Running in release mode avoids the verbose logging output of masonry.
 
+You can install the game like other Rust tools with
+
+```bash
+cargo install --path .
+```
+
 Tested only for Linux, but might work on Windows and MacOS.
 
 ## Resizing Notes
