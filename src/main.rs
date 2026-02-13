@@ -1,6 +1,6 @@
 // Xilem Sudoku v0.2
 // (c) S. Salewski 2025, 2026
-// 10-FEB-2026
+// 13-FEB-2026
 
 use std::time::{Duration, Instant};
 
@@ -8,6 +8,7 @@ use masonry::dpi::LogicalSize;
 use masonry::parley::FontStack;
 use masonry::layout::Length;
 use masonry::layout::AsUnit;
+use xilem::masonry::theme::{DEFAULT_GAP};
 //use masonry::properties::types::{AsUnit, Length};
 
 use tokio::time;
@@ -319,11 +320,16 @@ fn info_bar(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
     let seconds = elapsed % 60;
 
     flex_row((
+    FlexSpacer::Fixed(DEFAULT_GAP),
         label(format!("Time: {minutes}:{seconds:02}")).font(FontStack::Source("monospace".into())),
+        FlexSpacer::Flex(1.0),
         label(format!("Voids left: {}", state.voids)),
+                FlexSpacer::Flex(1.0),
         label(format!("Fails: {}", state.fails)),
+                FlexSpacer::Flex(1.0),
         label(format!("Difficulty: {:.0}", state.difficulty)),
-        sized_box(
+                //FlexSpacer::Flex(1.0),
+        //sized_box(
             slider(
                 0.0,
                 sudoku::MAX_DIFFICULTY_LEVEL as f64,
@@ -332,10 +338,13 @@ fn info_bar(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
                     state.difficulty = val;
                 },
             )
-            .step(1.0),
-        )
-        .width(40_i32.px()),
+            .step(1.0)
+            .width(80.px()),
+        //)
+        //.width(40_i32.px()),
+                FlexSpacer::Flex(1.0),
         text_button("New Game", |state: &mut AppState| state.new_game()).padding(8.0),
+        FlexSpacer::Fixed(DEFAULT_GAP),
     ))
 }
 
