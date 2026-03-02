@@ -4,10 +4,15 @@ version = "0.2.0"
 edition = "2024"
 
 [dependencies]
-xilem   = { git = "https://github.com/linebender/xilem.git", rev = "5281ffb308732b00f42e0755c6095b6ae234ae16" }
-xilem_core = { git = "https://github.com/linebender/xilem.git", rev = "5281ffb308732b00f42e0755c6095b6ae234ae16" }
-masonry = { git = "https://github.com/linebender/xilem.git", rev = "5281ffb308732b00f42e0755c6095b6ae234ae16" }
-masonry_winit = { git = "https://github.com/linebender/xilem.git", rev = "5281ffb308732b00f42e0755c6095b6ae234ae16" }
+#xilem   = { git = "https://github.com/linebender/xilem.git", rev = "5281ffb308732b00f42e0755c6095b6ae234ae16" }
+#xilem_core = { git = "https://github.com/linebender/xilem.git", rev = "5281ffb308732b00f42e0755c6095b6ae234ae16" }
+#masonry = { git = "https://github.com/linebender/xilem.git", rev = "5281ffb308732b00f42e0755c6095b6ae234ae16" }
+#masonry_winit = { git = "https://github.com/linebender/xilem.git", rev = "5281ffb308732b00f42e0755c6095b6ae234ae16" }
+
+xilem   = { git = "https://github.com/linebender/xilem.git"}
+xilem_core = { git = "https://github.com/linebender/xilem.git"}
+masonry = { git = "https://github.com/linebender/xilem.git"}
+masonry_winit = { git = "https://github.com/linebender/xilem.git"}
 
 winit = "0.30.12"
 rand = "0.10.0"

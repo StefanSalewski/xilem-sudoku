@@ -21,7 +21,7 @@ use xilem::view::{
     text_button,
 };
 use xilem::{Color, EventLoop, TextAlign, WidgetView, WindowOptions, Xilem};
-use xilem_core::Edit;
+//use xilem_core::Edit;
 
 mod sudoku;
 
@@ -255,7 +255,7 @@ impl Default for AppState {
 
 // --- Views ------------------------------------------------------------------------------------
 
-fn number_grid() -> impl WidgetView<Edit<AppState>> + use<> {
+fn number_grid() -> impl WidgetView<AppState> + use<> {
     // Digit buttons 1–9 (explicit loop instead of iterator `.map()` to avoid ICE)
     let mut number_cells = Vec::new();
     for i in 0..9 {
@@ -276,7 +276,7 @@ fn number_grid() -> impl WidgetView<Edit<AppState>> + use<> {
     grid(number_cells, 9, 1).gap(GRID_GAP)
 }
 
-fn cell(state: &mut AppState, index: usize) -> impl WidgetView<Edit<AppState>> + use<> {
+fn cell(state: &mut AppState, index: usize) -> impl WidgetView<AppState> + use<> {
     let value = state.sudoku[index];
 
     let text = match value {
@@ -314,7 +314,7 @@ fn cell(state: &mut AppState, index: usize) -> impl WidgetView<Edit<AppState>> +
     .border_color(Color::TRANSPARENT)
 }
 
-fn info_bar(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
+fn info_bar(state: &mut AppState) -> impl WidgetView<AppState> + use<> {
     let elapsed = state.elapsed_seconds();
     let minutes = elapsed / 60;
     let seconds = elapsed % 60;
@@ -349,7 +349,7 @@ fn info_bar(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
 }
 
 /// Build the full Sudoku board (3×3 blocks of 3×3 cells).
-fn build_board(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
+fn build_board(state: &mut AppState) -> impl WidgetView<AppState> + use<> {
     let mut sudoku_blocks = Vec::with_capacity(BOARD_BLOCKS * BOARD_BLOCKS);
 
     for block_row in 0..BOARD_BLOCKS {
@@ -375,7 +375,7 @@ fn build_board(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> 
     grid(sudoku_blocks, BOARD_BLOCKS as i32, BOARD_BLOCKS as i32).gap(GRID_GAP)
 }
 
-fn app_logic(state: &mut AppState) -> impl WidgetView<Edit<AppState>> + use<> {
+fn app_logic(state: &mut AppState) -> impl WidgetView<AppState> + use<> {
     let board = build_board(state);
 
     let layout = flex_col((
